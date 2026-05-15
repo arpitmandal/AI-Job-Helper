@@ -8,7 +8,7 @@
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
         <h1 class="h3 mb-0 fw-bold">Job Descriptions</h1>
-        <p class="text-muted mb-0">Manage saved job descriptions — delete ones you no longer need.</p>
+        <p class="text-muted mb-0">Click a row to preview the description. Delete ones you no longer need.</p>
     </div>
 </div>
 
@@ -36,8 +36,18 @@ else
                 <tbody>
                     @foreach (var jd in Model.JobDescriptions)
                     {
-                        var label = !string.IsNullOrEmpty(jd.Title) ? jd.Title : jd.ParsedContent.Length > 80 ? jd.ParsedContent[..80] + "…" : jd.ParsedContent;
-                        <tr id="row-@jd.Id">
+                        var label = !string.IsNullOrEmpty(jd.Title)
+                            ? jd.Title
+                            : jd.ParsedContent.Length > 80 ? jd.ParsedContent[..80] + "…" : jd.ParsedContent;
+                        <tr id="row-@jd.Id"
+                            class="jd-row"
+                            style="cursor:pointer"
+                            data-id="@jd.Id"
+                            data-label="@label"
+                            data-type="@jd.SourceType"
+                            data-date="@jd.CreatedAt.ToString("MMM d, yyyy h:mm tt")"
+                            data-content="@jd.ParsedContent"
+                            onclick="openPreview(this, event)">
                             <td class="ps-4 align-middle" style="max-width:420px">
                                 <span class="text-truncate d-block" style="max-width:400px" title="@label">@label</span>
                             </td>
@@ -47,7 +57,7 @@ else
                                 </span>
                             </td>
                             <td class="align-middle text-muted small">@jd.CreatedAt.ToString("MMM d, yyyy h:mm tt")</td>
-                            <td class="text-end pe-4 align-middle">
+                            <td class="text-end pe-4 align-middle" onclick="event.stopPropagation()">
                                 <button class="btn btn-sm btn-outline-danger"
                                         onclick="deleteJd('@jd.Id', this)">
                                     <i class="bi bi-trash me-1"></i>Delete
@@ -61,17 +71,77 @@ else
     </div>
 }
 
-<div id="deleteToast" class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+<!-- ── Detail Modal ───────────────────────────────────────── -->
+<div class="modal fade" id="jdModal" tabindex="-1" aria-labelledby="jdModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title fw-semibold" id="jdModalLabel"></h5>
+                    <div class="d-flex gap-2 mt-1 align-items-center">
+                        <span id="modalBadge" class="badge"></span>
+                        <small id="modalDate" class="text-muted"></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="modalContent" style="white-space:pre-wrap;font-family:inherit;font-size:0.92rem;line-height:1.7;margin:0"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger" id="modalDeleteBtn" onclick="deleteFromModal()">
+                    <i class="bi bi-trash me-1"></i>Delete this Job Description
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Error toast ────────────────────────────────────────── -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
     <div class="toast align-items-center text-bg-danger border-0 d-none" id="deleteToastEl" role="alert">
         <div class="d-flex">
             <div class="toast-body" id="deleteToastMsg"></div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.toast').classList.add('d-none')"></button>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                    onclick="this.closest('.toast').classList.add('d-none')"></button>
         </div>
     </div>
 </div>
 
 @section Scripts {
 <script>
+    let activeJdId = null;
+    const modal = new bootstrap.Modal(document.getElementById('jdModal'));
+
+    function openPreview(row, event) {
+        activeJdId = row.getAttribute('data-id');
+        const type = row.getAttribute('data-type');
+
+        document.getElementById('jdModalLabel').textContent = row.getAttribute('data-label');
+        document.getElementById('modalDate').textContent = row.getAttribute('data-date');
+        document.getElementById('modalContent').textContent = row.getAttribute('data-content');
+
+        const badge = document.getElementById('modalBadge');
+        if (type === 'url') {
+            badge.className = 'badge bg-info-subtle text-info';
+            badge.innerHTML = '<i class="bi bi-link-45deg me-1"></i>URL';
+        } else {
+            badge.className = 'badge bg-secondary-subtle text-secondary';
+            badge.innerHTML = '<i class="bi bi-textarea-t me-1"></i>TEXT';
+        }
+
+        modal.show();
+    }
+
+    function deleteFromModal() {
+        if (!activeJdId) return;
+        modal.hide();
+        // find the delete button in the table row and delegate to existing handler
+        const btn = document.querySelector(`#row-${activeJdId} .btn-outline-danger`);
+        if (btn) deleteJd(activeJdId, btn);
+    }
+
     async function deleteJd(id, btn) {
         if (!confirm('Delete this job description? Its ATS results will also be removed.')) return;
 
