@@ -40,10 +40,6 @@ try
             Version = "v1",
             Description = """
                 AI-powered resume analysis, ATS scoring, and cover letter generation.
-
-                **Phase 1 (current):** Resume upload and comprehensive AI analysis
-                — summary, strengths, weaknesses, and job title suggestions.
-
                 Powered by Google Gemini AI.
                 """
         });
