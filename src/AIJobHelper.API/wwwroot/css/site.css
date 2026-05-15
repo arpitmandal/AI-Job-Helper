@@ -118,9 +118,12 @@ body {
     border-bottom: 2px solid var(--brand-color);
     padding-bottom: 1rem;
     margin-bottom: 1.5rem;
-    white-space: pre-wrap;
     font-family: Arial, sans-serif;
 }
+
+.letter-header h1 { font-size: 1.45rem; font-weight: 700; margin: 0 0 0.15rem; }
+.letter-header h2 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.1rem; }
+.letter-header a, .letter-footer a, .letter-body a { color: var(--brand-color); }
 
 .letter-body {
     white-space: pre-wrap;
@@ -140,10 +143,73 @@ body {
 .letter-footer {
     border-top: 1px solid #dee2e6;
     padding-top: 1rem;
-    white-space: pre-wrap;
     color: #555;
     font-family: Arial, sans-serif;
 }
+
+.letter-footer h1 { font-size: 1.1rem; font-weight: 700; margin: 0 0 0.1rem; }
+.letter-footer h2 { font-size: 1rem; font-weight: 600; margin: 0 0 0.1rem; }
+
+/* ── Rich-text toolbar ───────────────────────────────── */
+.rte-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: #f1f3f5;
+    border: 1px solid #dee2e6;
+    border-radius: 6px 6px 0 0;
+    padding: 4px 6px;
+    flex-wrap: wrap;
+}
+
+.rte-toolbar.preview-toolbar {
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+
+.rte-btn {
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: #343a40;
+    line-height: 1.5;
+    transition: background 0.1s, border-color 0.1s;
+}
+
+.rte-btn:hover {
+    background: #e2e6ea;
+    border-color: #ced4da;
+}
+
+.rte-divider {
+    width: 1px;
+    height: 16px;
+    background: #ced4da;
+    margin: 0 3px;
+    flex-shrink: 0;
+}
+
+.rte-editor {
+    border-radius: 0 0 6px 6px !important;
+    border-top: none !important;
+    min-height: 76px;
+    outline: none;
+    cursor: text;
+    line-height: 1.6;
+}
+
+.rte-editor:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(79,70,229,0.18) !important;
+    border-color: var(--brand-color) !important;
+}
+
+.rte-editor h1 { font-size: 1.2rem; font-weight: 700; margin: 0.15rem 0; }
+.rte-editor h2 { font-size: 1rem; font-weight: 600; margin: 0.1rem 0; }
+.rte-editor a { color: var(--brand-color); }
 
 .loading-overlay {
     display: none;

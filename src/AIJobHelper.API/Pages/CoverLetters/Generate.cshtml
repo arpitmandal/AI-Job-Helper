@@ -72,13 +72,31 @@
             </div>
             <div class="card-body">
                 <label class="form-label fw-semibold small text-muted text-uppercase">Header</label>
-                <textarea id="headerTemplate" class="form-control mb-1" rows="3"
-                    placeholder="John Doe&#10;john@email.com | linkedin.com/in/johndoe | +1 555-123-4567&#10;May 14, 2026"></textarea>
-                <div class="form-text mb-3">Your name, contact info, date — appears at the top of the PDF.</div>
+                <div class="rte-toolbar" id="headerToolbar">
+                    <button type="button" class="rte-btn fw-bold" onmousedown="event.preventDefault()" onclick="fmt('bold')" title="Bold">B</button>
+                    <div class="rte-divider"></div>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="fmtBlock('h1')" title="Heading 1 — large name / title">H1</button>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="fmtBlock('h2')" title="Heading 2 — subtitle">H2</button>
+                    <button type="button" class="rte-btn text-muted" onmousedown="event.preventDefault()" onclick="fmtBlock('div')" title="Normal paragraph">¶</button>
+                    <div class="rte-divider"></div>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="insertLink()" title="Insert hyperlink (LinkedIn, GitHub, etc.)"><i class="bi bi-link-45deg"></i> Link</button>
+                </div>
+                <div id="headerTemplate" class="rte-editor form-control mb-1" contenteditable="true"
+                     data-placeholder="Your Name — then email, LinkedIn, phone, date on the next lines"></div>
+                <div class="form-text mb-3">Your name, contact info, date — appears at the top of the PDF. Select text then use the toolbar to style it.</div>
 
                 <label class="form-label fw-semibold small text-muted text-uppercase">Footer / Closing</label>
-                <textarea id="footerTemplate" class="form-control mb-1" rows="2"
-                    placeholder="Sincerely,&#10;John Doe"></textarea>
+                <div class="rte-toolbar" id="footerToolbar">
+                    <button type="button" class="rte-btn fw-bold" onmousedown="event.preventDefault()" onclick="fmt('bold')" title="Bold">B</button>
+                    <div class="rte-divider"></div>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="fmtBlock('h1')" title="Heading 1">H1</button>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="fmtBlock('h2')" title="Heading 2">H2</button>
+                    <button type="button" class="rte-btn text-muted" onmousedown="event.preventDefault()" onclick="fmtBlock('div')" title="Normal paragraph">¶</button>
+                    <div class="rte-divider"></div>
+                    <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="insertLink()" title="Insert hyperlink (LinkedIn, GitHub, etc.)"><i class="bi bi-link-45deg"></i> Link</button>
+                </div>
+                <div id="footerTemplate" class="rte-editor form-control mb-1" contenteditable="true"
+                     data-placeholder="Sincerely, — then your name"></div>
                 <div class="form-text">Closing signature — appears at the bottom of the PDF.</div>
                 <div id="templateError" class="text-danger small mt-1 d-none"></div>
             </div>
@@ -222,6 +240,18 @@
                 <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Generated</span>
             </div>
 
+            <!-- Formatting toolbar for the preview pane -->
+            <div class="rte-toolbar preview-toolbar mb-2">
+                <span class="text-muted small me-2" style="font-size:0.75rem">Format:</span>
+                <button type="button" class="rte-btn fw-bold" onmousedown="event.preventDefault()" onclick="fmt('bold')" title="Bold — great for highlighting ATS keywords">B</button>
+                <button type="button" class="rte-btn fst-italic" onmousedown="event.preventDefault()" onclick="fmt('italic')" title="Italic">I</button>
+                <div class="rte-divider"></div>
+                <button type="button" class="rte-btn" onmousedown="event.preventDefault()" onclick="insertLink()" title="Insert hyperlink"><i class="bi bi-link-45deg"></i></button>
+                <div class="rte-divider"></div>
+                <button type="button" class="rte-btn text-muted" onmousedown="event.preventDefault()" onclick="fmt('removeFormat')" title="Remove all formatting from selection">✕ Clear</button>
+                <span class="text-muted ms-2" style="font-size:0.72rem">← select text then click</span>
+            </div>
+
             <!-- Letter preview — all sections are editable -->
             <div class="letter-preview mb-4">
                 <div class="letter-header" id="previewHeader" contenteditable="true"
@@ -254,6 +284,39 @@
 
 @section Scripts {
 <script>
+    // ── Rich-text formatting ──────────────────────────────────────
+    let _savedRange = null;
+
+    function fmt(cmd) {
+        document.execCommand(cmd, false, null);
+    }
+
+    function fmtBlock(tag) {
+        document.execCommand('formatBlock', false, tag);
+    }
+
+    function insertLink() {
+        // Save selection before prompt steals focus
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0) _savedRange = sel.getRangeAt(0).cloneRange();
+
+        const url = prompt('Enter URL:', 'https://');
+        if (!url || !url.startsWith('http')) return;
+
+        // Restore selection, then create link
+        if (_savedRange) {
+            sel.removeAllRanges();
+            sel.addRange(_savedRange);
+        }
+        document.execCommand('createLink', false, url);
+
+        // Open links in new tab
+        document.querySelectorAll('[contenteditable] a').forEach(a => {
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+        });
+    }
+
     // ── State ─────────────────────────────────────────────────────
     let generatedLetterId = null;
     let currentConfigId = null;
@@ -275,8 +338,8 @@
         const opt = sel.options[sel.selectedIndex];
         document.getElementById('configName').value = opt.text;
         document.getElementById('instructions').value = opt.getAttribute('data-instructions') || '';
-        document.getElementById('headerTemplate').value = opt.getAttribute('data-header') || '';
-        document.getElementById('footerTemplate').value = opt.getAttribute('data-footer') || '';
+        document.getElementById('headerTemplate').innerHTML = opt.getAttribute('data-header') || '';
+        document.getElementById('footerTemplate').innerHTML = opt.getAttribute('data-footer') || '';
 
         updateBtn.disabled = false;
         deleteBtn.disabled = false;
@@ -296,8 +359,8 @@
                 body: JSON.stringify({
                     name,
                     instructions: document.getElementById('instructions').value.trim(),
-                    headerTemplate: document.getElementById('headerTemplate').value.trim(),
-                    footerTemplate: document.getElementById('footerTemplate').value.trim(),
+                    headerTemplate: document.getElementById('headerTemplate').innerHTML,
+                    footerTemplate: document.getElementById('footerTemplate').innerHTML,
                     isDefault: false
                 })
             });
@@ -330,8 +393,8 @@
                 body: JSON.stringify({
                     name,
                     instructions: document.getElementById('instructions').value.trim(),
-                    headerTemplate: document.getElementById('headerTemplate').value.trim(),
-                    footerTemplate: document.getElementById('footerTemplate').value.trim(),
+                    headerTemplate: document.getElementById('headerTemplate').innerHTML,
+                    footerTemplate: document.getElementById('footerTemplate').innerHTML,
                     isDefault: false
                 })
             });
@@ -342,8 +405,8 @@
             const opt = sel.options[sel.selectedIndex];
             opt.text = name;
             opt.setAttribute('data-instructions', document.getElementById('instructions').value.trim());
-            opt.setAttribute('data-header', document.getElementById('headerTemplate').value.trim());
-            opt.setAttribute('data-footer', document.getElementById('footerTemplate').value.trim());
+            opt.setAttribute('data-header', document.getElementById('headerTemplate').innerHTML);
+            opt.setAttribute('data-footer', document.getElementById('footerTemplate').innerHTML);
             showConfigMsg('Config updated!', 'success');
         } catch {
             hideLoading();
@@ -383,6 +446,7 @@
         opt.setAttribute('data-instructions', cfg.instructions || '');
         opt.setAttribute('data-header', cfg.headerTemplate || '');
         opt.setAttribute('data-footer', cfg.footerTemplate || '');
+        // headerTemplate/footerTemplate from API contain the stored HTML
         sel.add(opt);
     }
 
@@ -441,8 +505,8 @@
             ok = false;
         }
 
-        const header = document.getElementById('headerTemplate').value.trim();
-        const footer = document.getElementById('footerTemplate').value.trim();
+        const header = document.getElementById('headerTemplate').textContent.trim();
+        const footer = document.getElementById('footerTemplate').textContent.trim();
         if (!header || !footer) {
             showErr('templateError', 'Both header and footer template fields are required.');
             ok = false;
@@ -568,8 +632,8 @@
             body: JSON.stringify({
                 name: configName,
                 instructions: document.getElementById('instructions').value.trim(),
-                headerTemplate: document.getElementById('headerTemplate').value.trim(),
-                footerTemplate: document.getElementById('footerTemplate').value.trim(),
+                headerTemplate: document.getElementById('headerTemplate').innerHTML,
+                footerTemplate: document.getElementById('footerTemplate').innerHTML,
                 isDefault: false
             })
         });
@@ -590,10 +654,9 @@
         document.getElementById('previewPlaceholder').classList.add('d-none');
         document.getElementById('previewPanel').classList.remove('d-none');
 
-        // innerText preserves newlines in contenteditable divs with white-space:pre-wrap
-        document.getElementById('previewHeader').innerText = document.getElementById('headerTemplate').value.trim();
+        document.getElementById('previewHeader').innerHTML = document.getElementById('headerTemplate').innerHTML;
         document.getElementById('previewBody').innerText = body;
-        document.getElementById('previewFooter').innerText = document.getElementById('footerTemplate').value.trim();
+        document.getElementById('previewFooter').innerHTML = document.getElementById('footerTemplate').innerHTML;
 
         document.getElementById('pdfFileName').value = 'cover-letter';
         document.getElementById('previewPanel').scrollIntoView({ behavior: 'smooth' });
