@@ -6,6 +6,27 @@ Built with **.NET 10**, **Google Gemini 2.5 Flash**, and **MySQL 8**.
 
 ---
 
+## Quick Start
+
+Assumes MySQL is running and credentials are set in `appsettings.json` (see [Project Setup](#project-setup-step-by-step) for first-time config).
+
+```bash
+# 1. Build
+dotnet build AIJobHelper.slnx
+
+# 2. Apply database migrations
+dotnet ef database update \
+  --project src/AIJobHelper.Infrastructure \
+  --startup-project src/AIJobHelper.API
+
+# 3. Run
+dotnet run --project src/AIJobHelper.API
+```
+
+App is available at **http://localhost:5098** — Swagger UI at **http://localhost:5098/swagger**.
+
+---
+
 ## Features
 
 ### Phase 1 — Resume Analysis
