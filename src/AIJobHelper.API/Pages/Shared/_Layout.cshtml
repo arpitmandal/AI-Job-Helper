@@ -27,13 +27,18 @@
             <i class="bi bi-file-earmark-person"></i> Resumes
         </a>
 
-        <div class="nav-section">Phase 2 <span class="badge bg-secondary ms-1" style="font-size:0.6rem">coming soon</span></div>
-        <a class="nav-link text-muted" href="#"><i class="bi bi-file-earmark-text"></i> Job Descriptions</a>
-        <a class="nav-link text-muted" href="#"><i class="bi bi-bar-chart-line"></i> ATS Scorer</a>
+        <div class="nav-section">Phase 2</div>
+        <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "Ats" ? "active" : "")" href="/Ats">
+            <i class="bi bi-bar-chart-line"></i> ATS Scorer
+        </a>
+        <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "JobDescriptions" ? "active" : "")" href="/JobDescriptions">
+            <i class="bi bi-briefcase"></i> Job Descriptions
+        </a>
 
-        <div class="nav-section">Phase 3 <span class="badge bg-secondary ms-1" style="font-size:0.6rem">coming soon</span></div>
-        <a class="nav-link text-muted" href="#"><i class="bi bi-gear"></i> Letter Configs</a>
-        <a class="nav-link text-muted" href="#"><i class="bi bi-envelope-paper"></i> Cover Letters</a>
+        <div class="nav-section">Phase 3</div>
+        <a class="nav-link @(ViewData["ActivePage"]?.ToString() == "CoverLetters" ? "active" : "")" href="/CoverLetters/Generate">
+            <i class="bi bi-envelope-paper"></i> Cover Letter
+        </a>
 
         <div class="nav-section mt-3">Tools</div>
         <a class="nav-link" href="/swagger" target="_blank">

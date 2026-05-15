@@ -23,16 +23,20 @@
     </div>
     <div class="col-md-4">
         <div class="card stat-card p-4">
-            <div class="stat-value text-secondary">—</div>
-            <div class="text-muted">ATS scores (Phase 2)</div>
-            <span class="badge bg-light text-secondary mt-3">Coming soon</span>
+            <div class="stat-value">@Model.AtsCount</div>
+            <div class="text-muted">ATS scores run</div>
+            <a href="/Ats" class="btn btn-sm btn-outline-primary mt-3">
+                <i class="bi bi-arrow-right me-1"></i>ATS Scorer
+            </a>
         </div>
     </div>
     <div class="col-md-4">
         <div class="card stat-card p-4">
-            <div class="stat-value text-secondary">—</div>
-            <div class="text-muted">Cover letters (Phase 3)</div>
-            <span class="badge bg-light text-secondary mt-3">Coming soon</span>
+            <div class="stat-value">@Model.CoverLetterCount</div>
+            <div class="text-muted">Cover letters generated</div>
+            <a href="/CoverLetters/Generate" class="btn btn-sm btn-outline-primary mt-3">
+                <i class="bi bi-arrow-right me-1"></i>Generate Letter
+            </a>
         </div>
     </div>
 </div>
@@ -47,17 +51,17 @@
         </a>
     </div>
     <div class="col-md-4">
-        <div class="card stat-card p-4 h-100 opacity-50">
-            <div class="fs-2 mb-2 text-secondary"><i class="bi bi-bar-chart-line"></i></div>
+        <a href="/Ats" class="card stat-card p-4 text-decoration-none text-dark d-block h-100">
+            <div class="fs-2 mb-2 text-primary"><i class="bi bi-bar-chart-line"></i></div>
             <div class="fw-semibold">ATS Scorer</div>
-            <div class="text-muted small mt-1">Match your resume to a job description. Available in Phase 2.</div>
-        </div>
+            <div class="text-muted small mt-1">Match your resume to a job description and get a detailed ATS report.</div>
+        </a>
     </div>
     <div class="col-md-4">
-        <div class="card stat-card p-4 h-100 opacity-50">
-            <div class="fs-2 mb-2 text-secondary"><i class="bi bi-envelope-paper"></i></div>
+        <a href="/CoverLetters/Generate" class="card stat-card p-4 text-decoration-none text-dark d-block h-100">
+            <div class="fs-2 mb-2 text-primary"><i class="bi bi-envelope-paper"></i></div>
             <div class="fw-semibold">Cover Letter</div>
-            <div class="text-muted small mt-1">Generate a tailored cover letter. Available in Phase 3.</div>
-        </div>
+            <div class="text-muted small mt-1">Generate a tailored AI cover letter and download it as a PDF.</div>
+        </a>
     </div>
 </div>

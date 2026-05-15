@@ -18,4 +18,7 @@ public interface ICoverLetterService
 
     /// <summary>Returns the PDF stream and filename for download.</summary>
     Task<(Stream PdfStream, string FileName)> GetPdfAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Render a PDF from arbitrary header/body/footer text (no DB record created).</summary>
+    byte[] RenderPdf(string header, string body, string footer, string fileName);
 }

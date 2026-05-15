@@ -108,7 +108,8 @@ public class CoverLetterService : ICoverLetterService
         _logger.LogInformation("Generating cover letter for resume {ResumeId}", request.ResumeId);
 
         var prompt = BuildPrompt(config.Instructions, resume.ContentText, jdText);
-        var body = await _gemini.GenerateAsync(prompt, ct);
+        var raw = await _gemini.GenerateAsync(prompt, ct);
+        var body = UnwrapJsonString(raw);
 
         var fileName = SanitizeFileName(request.FileName) is { Length: > 0 } f ? f : "cover-letter";
 
@@ -212,12 +213,14 @@ public class CoverLetterService : ICoverLetterService
         Instructions and guidelines to follow:
         {instructions}
 
-        Rules:
-        - Write ONLY the body paragraphs — do not include a salutation, header, or closing signature.
+        Strict formatting rules — you MUST follow these exactly:
+        - Write ONLY the body paragraphs — do not include a salutation ("Dear Hiring Manager"), header, or closing signature ("Sincerely").
+        - Write in plain prose. Do NOT use any markdown formatting: no asterisks (*), no underscores (_), no pound signs (#), no backticks (`), no bullet lists with asterisks.
+        - Separate paragraphs with a blank line.
         - Connect the candidate's specific experience directly to the requirements in the job description.
         - Be concise, professional, and persuasive.
         - Do not use generic filler phrases.
-        - Return only the cover letter body text — no JSON, no markdown, no extra commentary.
+        - Return only the plain text cover letter body — no JSON, no markdown, no code blocks, no commentary.
 
         Candidate's Resume:
         {resumeText}
@@ -225,6 +228,22 @@ public class CoverLetterService : ICoverLetterService
         Job Description:
         {jdText}
         """;
+
+    public byte[] RenderPdf(string header, string body, string footer, string fileName) =>
+        _pdf.Generate(header, body, footer, SanitizeFileName(fileName) is { Length: > 0 } f ? f : "cover-letter");
+
+    // Gemini with responseMimeType=application/json wraps plain-text responses as a JSON string literal.
+    // JsonDocument.GetString() returns the raw value including the surrounding quotes — strip them.
+    private static string UnwrapJsonString(string text)
+    {
+        text = text.Trim();
+        if (text.StartsWith('"') && text.EndsWith('"') && text.Length >= 2)
+        {
+            try { return System.Text.Json.JsonSerializer.Deserialize<string>(text) ?? text; }
+            catch { /* not a valid JSON string — return as-is */ }
+        }
+        return text;
+    }
 
     private static string SanitizeFileName(string? name)
     {

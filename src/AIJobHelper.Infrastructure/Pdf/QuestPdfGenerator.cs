@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using AIJobHelper.Application.Interfaces;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -9,6 +10,8 @@ public class QuestPdfGenerator : IPdfGenerator
 {
     public byte[] Generate(string header, string body, string footer, string fileName)
     {
+        body = StripMarkdown(body);
+
         var document = Document.Create(container =>
         {
             container.Page(page =>
@@ -74,4 +77,19 @@ public class QuestPdfGenerator : IPdfGenerator
         text.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries)
             .Select(p => p.Replace("\r\n", " ").Replace("\n", " ").Trim())
             .Where(p => !string.IsNullOrWhiteSpace(p));
+
+    private static string StripMarkdown(string text)
+    {
+        // **bold** and __bold__ → plain text
+        text = Regex.Replace(text, @"\*\*(.+?)\*\*", "$1", RegexOptions.Singleline);
+        text = Regex.Replace(text, @"__(.+?)__", "$1", RegexOptions.Singleline);
+        // *italic* and _italic_ → plain text (only when surrounded by non-word chars)
+        text = Regex.Replace(text, @"\*(.+?)\*", "$1", RegexOptions.Singleline);
+        text = Regex.Replace(text, @"(?<!\w)_(.+?)_(?!\w)", "$1", RegexOptions.Singleline);
+        // # headings at start of line
+        text = Regex.Replace(text, @"(?m)^#{1,6}\s+", "");
+        // `inline code`
+        text = Regex.Replace(text, @"`(.+?)`", "$1");
+        return text;
+    }
 }

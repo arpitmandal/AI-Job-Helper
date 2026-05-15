@@ -63,4 +63,21 @@ public class JobDescriptionsController : ControllerBase
         var results = await _service.ListAsync(ct);
         return Ok(results);
     }
+
+    /// <summary>Delete a job description and its associated ATS results.</summary>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            await _service.DeleteAsync(id, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+    }
 }

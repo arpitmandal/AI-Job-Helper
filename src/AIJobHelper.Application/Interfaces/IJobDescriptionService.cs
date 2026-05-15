@@ -7,4 +7,5 @@ public interface IJobDescriptionService
     Task<JobDescriptionDto> CreateAsync(string content, CancellationToken ct = default);
     Task<JobDescriptionDto?> GetAsync(Guid id, CancellationToken ct = default);
     Task<IEnumerable<JobDescriptionDto>> ListAsync(CancellationToken ct = default);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
 }

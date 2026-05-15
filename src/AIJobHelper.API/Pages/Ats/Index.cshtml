@@ -1,0 +1,369 @@
+@page
+@model AIJobHelper.API.Pages.Ats.AtsIndexModel
+@{
+    ViewData["Title"] = "ATS Scorer";
+    ViewData["ActivePage"] = "Ats";
+}
+
+<div class="d-flex align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 fw-bold">ATS Scorer</h1>
+        <p class="text-muted mb-0">Match your resume against a job description and get a detailed ATS compatibility report</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- ── Left: Input form ──────────────────────────────────────── -->
+    <div class="col-lg-5">
+        <div class="card stat-card">
+            <div class="card-body p-4">
+
+                <!-- ── Job Description ── -->
+                <h6 class="fw-semibold mb-3"><i class="bi bi-file-earmark-text me-1 text-primary"></i>Job Description</h6>
+
+                <div class="btn-group w-100 mb-3" role="group">
+                    <input type="radio" class="btn-check" name="jdType" id="jdTypeUrl" value="url" checked />
+                    <label class="btn btn-outline-primary btn-sm" for="jdTypeUrl">
+                        <i class="bi bi-link-45deg me-1"></i>Job URL
+                    </label>
+                    <input type="radio" class="btn-check" name="jdType" id="jdTypeText" value="text" />
+                    <label class="btn btn-outline-primary btn-sm" for="jdTypeText">
+                        <i class="bi bi-textarea-t me-1"></i>Paste Text
+                    </label>
+                </div>
+
+                <div id="jdUrlInput">
+                    <input type="url" id="jdUrl" class="form-control" placeholder="https://company.com/jobs/software-engineer" />
+                    <div class="form-text">Simple job boards (Greenhouse, Lever, direct company pages). Paste text if the URL can't be scraped.</div>
+                </div>
+
+                <div id="jdTextInput" class="d-none">
+                    <textarea id="jdText" class="form-control" rows="8" placeholder="Paste the full job description here..."></textarea>
+                </div>
+
+                <div id="jdError" class="text-danger small mt-1 d-none"></div>
+
+                <hr class="my-4" />
+
+                <!-- ── Resume ── -->
+                <h6 class="fw-semibold mb-3"><i class="bi bi-file-earmark-person me-1 text-primary"></i>Resume</h6>
+
+                <div class="btn-group w-100 mb-3" role="group">
+                    <input type="radio" class="btn-check" name="resumeSource" id="resumeFromLib" value="library" @(Model.Resumes.Any() ? "checked" : "") />
+                    <label class="btn btn-outline-primary btn-sm" for="resumeFromLib">
+                        <i class="bi bi-collection me-1"></i>Select from Library
+                    </label>
+                    <input type="radio" class="btn-check" name="resumeSource" id="resumeUpload" value="upload" @(!Model.Resumes.Any() ? "checked" : "") />
+                    <label class="btn btn-outline-primary btn-sm" for="resumeUpload">
+                        <i class="bi bi-upload me-1"></i>Upload New
+                    </label>
+                </div>
+
+                <div id="resumeLibInput">
+                    @if (Model.Resumes.Any())
+                    {
+                        <select id="resumeSelect" class="form-select">
+                            <option value="">— Select a resume —</option>
+                            @foreach (var r in Model.Resumes)
+                            {
+                                <option value="@r.Id">@r.FileName (@r.FileType.ToUpper() · @r.UploadedAt.ToString("MMM d, yyyy"))</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info py-2 small mb-0">
+                            <i class="bi bi-info-circle me-1"></i>No resumes in library yet.
+                            <a href="/Resumes">Upload one first</a> or use the Upload option above.
+                        </div>
+                    }
+                </div>
+
+                <div id="resumeUploadInput" class="d-none">
+                    <input type="file" id="resumeFile" class="form-control" accept=".pdf,.docx" />
+                    <div class="form-text">PDF or DOCX, max 10 MB. Will be saved to your library.</div>
+                </div>
+
+                <div id="resumeError" class="text-danger small mt-1 d-none"></div>
+
+                <div class="d-grid mt-4">
+                    <button class="btn btn-primary btn-lg" id="analyseBtn" onclick="runAts()">
+                        <i class="bi bi-stars me-2"></i>Analyse ATS Score
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Right: Results ───────────────────────────────────────── -->
+    <div class="col-lg-7">
+        <!-- Placeholder before analysis -->
+        <div id="resultsPlaceholder" class="card stat-card p-5 text-center h-100 d-flex align-items-center justify-content-center">
+            <div>
+                <div class="fs-1 text-muted mb-3"><i class="bi bi-bar-chart-line"></i></div>
+                <h5>Your ATS report will appear here</h5>
+                <p class="text-muted">Fill in the job description and select a resume, then click Analyse.</p>
+            </div>
+        </div>
+
+        <!-- Results panel (hidden until analysis completes) -->
+        <div id="resultsPanel" class="d-none">
+
+            <!-- Score header -->
+            <div class="card stat-card mb-3">
+                <div class="card-body d-flex align-items-center gap-4 p-4">
+                    <div id="scoreBadge" class="score-badge flex-shrink-0">—</div>
+                    <div>
+                        <div class="fw-semibold text-muted text-uppercase small mb-1">ATS Compatibility Score</div>
+                        <div id="scoreSummary" class="fs-6"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Skills -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-header bg-transparent py-3">
+                            <span class="fw-semibold text-success"><i class="bi bi-check-circle me-1"></i>Matched Skills</span>
+                        </div>
+                        <div class="card-body" id="matchedSkills"></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card stat-card h-100">
+                        <div class="card-header bg-transparent py-3">
+                            <span class="fw-semibold text-danger"><i class="bi bi-x-circle me-1"></i>Missing Skills</span>
+                        </div>
+                        <div class="card-body" id="missingSkills"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ATS Changes -->
+            <div class="card stat-card mb-3">
+                <div class="card-header bg-transparent py-3">
+                    <span class="fw-semibold text-warning"><i class="bi bi-pencil-square me-1"></i>Specific Resume Edits to Clear ATS</span>
+                </div>
+                <ul class="list-group list-group-flush" id="atsChanges"></ul>
+            </div>
+
+            <!-- Suggestions -->
+            <div class="card stat-card">
+                <div class="card-header bg-transparent py-3">
+                    <span class="fw-semibold"><i class="bi bi-lightbulb me-1"></i>General Recommendations</span>
+                </div>
+                <ul class="list-group list-group-flush" id="suggestions"></ul>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // ── Toggle JD input mode ──────────────────────────────────────
+    document.querySelectorAll('input[name="jdType"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            const isUrl = document.getElementById('jdTypeUrl').checked;
+            document.getElementById('jdUrlInput').classList.toggle('d-none', !isUrl);
+            document.getElementById('jdTextInput').classList.toggle('d-none', isUrl);
+            clearError('jdError');
+        });
+    });
+
+    // ── Toggle resume source ──────────────────────────────────────
+    document.querySelectorAll('input[name="resumeSource"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            const isLib = document.getElementById('resumeFromLib').checked;
+            document.getElementById('resumeLibInput').classList.toggle('d-none', !isLib);
+            document.getElementById('resumeUploadInput').classList.toggle('d-none', isLib);
+            clearError('resumeError');
+        });
+    });
+
+    // ── Validation ────────────────────────────────────────────────
+    function validate() {
+        let valid = true;
+
+        const jdType = document.querySelector('input[name="jdType"]:checked').value;
+        if (jdType === 'url') {
+            const url = document.getElementById('jdUrl').value.trim();
+            if (!url || !url.startsWith('http')) {
+                showError('jdError', 'Please enter a valid job posting URL (starting with http or https).');
+                valid = false;
+            }
+        } else {
+            const text = document.getElementById('jdText').value.trim();
+            if (text.length < 50) {
+                showError('jdError', 'Please paste the full job description (at least 50 characters).');
+                valid = false;
+            }
+        }
+
+        const resumeSource = document.querySelector('input[name="resumeSource"]:checked').value;
+        if (resumeSource === 'library') {
+            const sel = document.getElementById('resumeSelect');
+            if (!sel || !sel.value) {
+                showError('resumeError', 'Please select a resume from your library.');
+                valid = false;
+            }
+        } else {
+            const file = document.getElementById('resumeFile').files[0];
+            if (!file) {
+                showError('resumeError', 'Please select a PDF or DOCX resume file.');
+                valid = false;
+            } else if (file.size > 10 * 1024 * 1024) {
+                showError('resumeError', 'File must be 10 MB or less.');
+                valid = false;
+            }
+        }
+
+        return valid;
+    }
+
+    function showError(id, msg) {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.classList.remove('d-none');
+    }
+
+    function clearError(id) {
+        const el = document.getElementById(id);
+        el.textContent = '';
+        el.classList.add('d-none');
+    }
+
+    // ── Main analysis flow ────────────────────────────────────────
+    async function runAts() {
+        clearError('jdError');
+        clearError('resumeError');
+        if (!validate()) return;
+
+        const btn = document.getElementById('analyseBtn');
+        btn.disabled = true;
+        showLoading('Analysing with Gemini AI...');
+
+        try {
+            // Step 1: resolve resumeId
+            let resumeId;
+            const resumeSource = document.querySelector('input[name="resumeSource"]:checked').value;
+            if (resumeSource === 'library') {
+                resumeId = document.getElementById('resumeSelect').value;
+            } else {
+                resumeId = await uploadResume();
+            }
+
+            // Step 2: save job description
+            const jobDescriptionId = await saveJobDescription();
+
+            // Step 3: run ATS score
+            const result = await scoreAts(resumeId, jobDescriptionId);
+
+            hideLoading();
+            renderResults(result);
+        } catch (e) {
+            hideLoading();
+            btn.disabled = false;
+            showError('jdError', e.message);
+        }
+    }
+
+    async function uploadResume() {
+        const file = document.getElementById('resumeFile').files[0];
+        const form = new FormData();
+        form.append('file', file);
+
+        const resp = await fetch('/api/resumes/upload', { method: 'POST', body: form });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || 'Resume upload failed. Please try again.');
+        }
+        const data = await resp.json();
+        return data.id;
+    }
+
+    async function saveJobDescription() {
+        const jdType = document.querySelector('input[name="jdType"]:checked').value;
+        const content = jdType === 'url'
+            ? document.getElementById('jdUrl').value.trim()
+            : document.getElementById('jdText').value.trim();
+
+        const resp = await fetch('/api/job-descriptions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            if (resp.status === 422) {
+                throw new Error(err.detail || 'Could not scrape this URL. Please paste the job description text directly instead.');
+            }
+            throw new Error(err.detail || 'Could not save job description. Please try again.');
+        }
+        const data = await resp.json();
+        return data.id;
+    }
+
+    async function scoreAts(resumeId, jobDescriptionId) {
+        const resp = await fetch('/api/ats/score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeId, jobDescriptionId })
+        });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || 'ATS scoring failed. Please try again.');
+        }
+        return resp.json();
+    }
+
+    // ── Render results ────────────────────────────────────────────
+    function renderResults(r) {
+        document.getElementById('resultsPlaceholder').classList.add('d-none');
+        document.getElementById('resultsPanel').classList.remove('d-none');
+
+        // Score badge
+        const score = Math.round(r.score);
+        const badge = document.getElementById('scoreBadge');
+        badge.textContent = score;
+        badge.className = 'score-badge flex-shrink-0 ' + (score >= 70 ? 'score-high' : score >= 40 ? 'score-medium' : 'score-low');
+
+        // Summary
+        document.getElementById('scoreSummary').textContent = r.aiSummary;
+
+        // Matched skills
+        const matched = document.getElementById('matchedSkills');
+        matched.innerHTML = r.matchedSkills.length
+            ? r.matchedSkills.map(s => `<span class="skill-pill bg-success bg-opacity-10 text-success">${escHtml(s)}</span>`).join('')
+            : '<span class="text-muted small">None identified</span>';
+
+        // Missing skills
+        const missing = document.getElementById('missingSkills');
+        missing.innerHTML = r.missingSkills.length
+            ? r.missingSkills.map(s => `<span class="skill-pill bg-danger bg-opacity-10 text-danger">${escHtml(s)}</span>`).join('')
+            : '<span class="text-muted small">None — great match!</span>';
+
+        // ATS Changes
+        const changes = document.getElementById('atsChanges');
+        changes.innerHTML = r.atsChanges.length
+            ? r.atsChanges.map(c => `<li class="list-group-item d-flex gap-2"><i class="bi bi-pencil text-warning mt-1 flex-shrink-0"></i>${escHtml(c)}</li>`).join('')
+            : '<li class="list-group-item text-muted">No specific edits needed.</li>';
+
+        // Suggestions
+        const sugg = document.getElementById('suggestions');
+        sugg.innerHTML = r.suggestions.length
+            ? r.suggestions.map(s => `<li class="list-group-item d-flex gap-2"><i class="bi bi-lightbulb text-primary mt-1 flex-shrink-0"></i>${escHtml(s)}</li>`).join('')
+            : '<li class="list-group-item text-muted">No additional suggestions.</li>';
+
+        // Re-enable button
+        document.getElementById('analyseBtn').disabled = false;
+        document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function escHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+</script>
+}

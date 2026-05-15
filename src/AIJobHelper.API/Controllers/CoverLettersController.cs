@@ -80,4 +80,19 @@ public class CoverLettersController : ControllerBase
         var (stream, fileName) = await _service.GetPdfAsync(id, ct);
         return File(stream, "application/pdf", fileName);
     }
+
+    /// <summary>Render a PDF from provided header/body/footer text — no DB record created.</summary>
+    /// <remarks>Use this to download a cover letter after editing the preview in the UI.</remarks>
+    [HttpPost("render-pdf")]
+    [Produces("application/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public IActionResult RenderPdf([FromBody] RenderPdfRequest request)
+    {
+        var bytes = _service.RenderPdf(request.Header, request.Body, request.Footer, request.FileName);
+        var fileName = string.IsNullOrWhiteSpace(request.FileName) ? "cover-letter" : request.FileName;
+        return File(bytes, "application/pdf", $"{fileName}.pdf");
+    }
 }
+
+public record RenderPdfRequest(string Header, string Body, string Footer, string FileName);

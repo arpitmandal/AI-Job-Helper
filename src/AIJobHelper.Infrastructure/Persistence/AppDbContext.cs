@@ -39,6 +39,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
         {
             e.HasKey(j => j.Id);
             e.Property(j => j.SourceType).HasMaxLength(10).IsRequired();
+            e.Property(j => j.Title).HasMaxLength(512);
             e.Property(j => j.RawContent).HasColumnType("longtext");
             e.Property(j => j.ParsedContent).HasColumnType("longtext");
         });

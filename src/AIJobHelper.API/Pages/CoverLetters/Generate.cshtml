@@ -1,0 +1,656 @@
+@page
+@model AIJobHelper.API.Pages.CoverLetters.GenerateModel
+@{
+    ViewData["Title"] = "Cover Letter Generator";
+    ViewData["ActivePage"] = "CoverLetters";
+}
+
+<div class="d-flex align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 fw-bold">AI Cover Letter Generator</h1>
+        <p class="text-muted mb-0">Load a saved config or build one from scratch, then generate a tailored PDF</p>
+    </div>
+</div>
+
+<div class="row g-4">
+
+    <!-- ══════════════════════════════════════════════════════════
+         LEFT — Configuration form
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="col-lg-5">
+
+        <!-- ── 0. Config Management ── -->
+        <div class="card stat-card mb-3">
+            <div class="card-header bg-transparent py-3">
+                <span class="fw-semibold"><i class="bi bi-bookmark-star me-1 text-primary"></i>Saved Configurations</span>
+            </div>
+            <div class="card-body">
+                <select id="configSelect" class="form-select mb-2" onchange="onConfigSelected()">
+                    <option value="">— New Config (not saved) —</option>
+                    @foreach (var c in Model.Configs)
+                    {
+                        <option value="@c.Id"
+                                data-instructions="@c.Instructions"
+                                data-header="@c.HeaderTemplate"
+                                data-footer="@c.FooterTemplate">@c.Name</option>
+                    }
+                </select>
+                <input type="text" id="configName" class="form-control mb-2"
+                       placeholder="Config name (e.g. Software Engineer – Senior)…" />
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary flex-fill" onclick="saveNewConfig()">
+                        <i class="bi bi-plus-circle me-1"></i>Save New
+                    </button>
+                    <button class="btn btn-sm btn-outline-success flex-fill" id="updateConfigBtn" onclick="updateCurrentConfig()" disabled>
+                        <i class="bi bi-pencil me-1"></i>Update
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" id="deleteConfigBtn" onclick="deleteCurrentConfig()" disabled>
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <div id="configMsg" class="small mt-2 d-none"></div>
+            </div>
+        </div>
+
+        <!-- ── 1. AI Instructions ── -->
+        <div class="card stat-card mb-3">
+            <div class="card-header bg-transparent py-3">
+                <span class="fw-semibold"><i class="bi bi-stars me-1 text-primary"></i>AI Instructions &amp; Guidelines</span>
+            </div>
+            <div class="card-body">
+                <textarea id="instructions" class="form-control" rows="4"
+                    placeholder="e.g. Write in a confident but professional tone. Keep it under 3 paragraphs. Emphasise leadership experience and cloud expertise."></textarea>
+                <div class="form-text">Tell the AI how to write your letter — tone, length, focus areas, style.</div>
+                <div id="instructionsError" class="text-danger small mt-1 d-none"></div>
+            </div>
+        </div>
+
+        <!-- ── 2. Template: Header & Footer ── -->
+        <div class="card stat-card mb-3">
+            <div class="card-header bg-transparent py-3">
+                <span class="fw-semibold"><i class="bi bi-layout-text-window me-1 text-primary"></i>Letter Template</span>
+            </div>
+            <div class="card-body">
+                <label class="form-label fw-semibold small text-muted text-uppercase">Header</label>
+                <textarea id="headerTemplate" class="form-control mb-1" rows="3"
+                    placeholder="John Doe&#10;john@email.com | linkedin.com/in/johndoe | +1 555-123-4567&#10;May 14, 2026"></textarea>
+                <div class="form-text mb-3">Your name, contact info, date — appears at the top of the PDF.</div>
+
+                <label class="form-label fw-semibold small text-muted text-uppercase">Footer / Closing</label>
+                <textarea id="footerTemplate" class="form-control mb-1" rows="2"
+                    placeholder="Sincerely,&#10;John Doe"></textarea>
+                <div class="form-text">Closing signature — appears at the bottom of the PDF.</div>
+                <div id="templateError" class="text-danger small mt-1 d-none"></div>
+            </div>
+        </div>
+
+        <!-- ── 3. Resume ── -->
+        <div class="card stat-card mb-3">
+            <div class="card-header bg-transparent py-3">
+                <span class="fw-semibold"><i class="bi bi-file-earmark-person me-1 text-primary"></i>Resume</span>
+            </div>
+            <div class="card-body">
+                <div class="btn-group w-100 mb-3" role="group">
+                    <input type="radio" class="btn-check" name="resumeSource" id="resumeFromLib" value="library" @(Model.Resumes.Any() ? "checked" : "") />
+                    <label class="btn btn-outline-primary btn-sm" for="resumeFromLib">
+                        <i class="bi bi-collection me-1"></i>From Library
+                    </label>
+                    <input type="radio" class="btn-check" name="resumeSource" id="resumeUpload" value="upload" @(!Model.Resumes.Any() ? "checked" : "") />
+                    <label class="btn btn-outline-primary btn-sm" for="resumeUpload">
+                        <i class="bi bi-upload me-1"></i>Upload New
+                    </label>
+                </div>
+
+                <div id="resumeLibInput">
+                    @if (Model.Resumes.Any())
+                    {
+                        <select id="resumeSelect" class="form-select">
+                            <option value="">— Select a resume —</option>
+                            @foreach (var r in Model.Resumes)
+                            {
+                                <option value="@r.Id">@r.FileName (@r.FileType.ToUpper() · @r.UploadedAt.ToString("MMM d, yyyy"))</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info py-2 small mb-0">
+                            <i class="bi bi-info-circle me-1"></i>No resumes in library.
+                            <a href="/Resumes">Upload one first</a> or use Upload New.
+                        </div>
+                    }
+                </div>
+
+                <div id="resumeUploadInput" class="d-none">
+                    <input type="file" id="resumeFile" class="form-control" accept=".pdf,.docx" />
+                    <div class="form-text">PDF or DOCX, max 10 MB.</div>
+                </div>
+                <div id="resumeError" class="text-danger small mt-1 d-none"></div>
+            </div>
+        </div>
+
+        <!-- ── 4. Job Description ── -->
+        <div class="card stat-card mb-4">
+            <div class="card-header bg-transparent py-3">
+                <span class="fw-semibold"><i class="bi bi-file-earmark-text me-1 text-primary"></i>Job Description</span>
+            </div>
+            <div class="card-body">
+                <div class="btn-group w-100 mb-3" role="group">
+                    <input type="radio" class="btn-check" name="jdSource" id="jdFromDb" value="stored" @(Model.JobDescriptions.Any() ? "checked" : "") />
+                    <label class="btn btn-outline-primary btn-sm" for="jdFromDb">
+                        <i class="bi bi-database me-1"></i>From Database
+                    </label>
+                    <input type="radio" class="btn-check" name="jdSource" id="jdFromText" value="text" />
+                    <label class="btn btn-outline-primary btn-sm" for="jdFromText">
+                        <i class="bi bi-textarea-t me-1"></i>Paste Text
+                    </label>
+                    <input type="radio" class="btn-check" name="jdSource" id="jdFromUrl" value="url" @(!Model.JobDescriptions.Any() ? "checked" : "") />
+                    <label class="btn btn-outline-primary btn-sm" for="jdFromUrl">
+                        <i class="bi bi-link-45deg me-1"></i>URL
+                    </label>
+                </div>
+
+                <!-- From Database -->
+                <div id="jdDbInput">
+                    @if (Model.JobDescriptions.Any())
+                    {
+                        <select id="jdSelect" class="form-select mb-2" onchange="onJdSelected()">
+                            <option value="">— Select a saved job description —</option>
+                            @foreach (var jd in Model.JobDescriptions)
+                            {
+                                var label = !string.IsNullOrEmpty(jd.Title)
+                                    ? jd.Title
+                                    : $"{jd.SourceType.ToUpper()} · {jd.CreatedAt:MMM d, yyyy h:mm tt}";
+                                <option value="@jd.Id" data-content="@jd.ParsedContent">@label</option>
+                            }
+                        </select>
+                        <div id="jdDbPreview" class="form-control bg-light small d-none"
+                            style="height:120px;overflow-y:auto;white-space:pre-wrap;font-size:0.8rem"></div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info py-2 small mb-0">
+                            <i class="bi bi-info-circle me-1"></i>No saved job descriptions.
+                            <a href="/Ats">Go to ATS Scorer</a> to save one, or use Paste Text / URL.
+                        </div>
+                    }
+                </div>
+
+                <!-- Paste Text -->
+                <div id="jdTextInput" class="d-none">
+                    <textarea id="jdText" class="form-control" rows="6" placeholder="Paste the full job description here..."></textarea>
+                </div>
+
+                <!-- URL -->
+                <div id="jdUrlInput" class="d-none">
+                    <input type="url" id="jdUrl" class="form-control"
+                        placeholder="https://company.com/careers/software-engineer" />
+                    <div class="form-text">Simple job boards (Greenhouse, Lever, direct pages). Paste text if the URL can't be scraped.</div>
+                </div>
+
+                <div id="jdError" class="text-danger small mt-1 d-none"></div>
+            </div>
+        </div>
+
+        <!-- ── Generate button ── -->
+        <div class="d-grid">
+            <button class="btn btn-primary btn-lg" id="generateBtn" onclick="generate()">
+                <i class="bi bi-stars me-2"></i>Generate Cover Letter
+            </button>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         RIGHT — Preview & Download
+    ═══════════════════════════════════════════════════════════ -->
+    <div class="col-lg-7">
+
+        <!-- Placeholder -->
+        <div id="previewPlaceholder" class="card stat-card p-5 text-center h-100 d-flex align-items-center justify-content-center">
+            <div>
+                <div class="fs-1 text-muted mb-3"><i class="bi bi-envelope-paper"></i></div>
+                <h5>Your cover letter preview will appear here</h5>
+                <p class="text-muted">Fill in the configuration on the left and click Generate.</p>
+            </div>
+        </div>
+
+        <!-- Preview panel (shown after generation) -->
+        <div id="previewPanel" class="d-none">
+
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="fw-semibold mb-0"><i class="bi bi-eye me-1"></i>Preview</h6>
+                <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle me-1"></i>Generated</span>
+            </div>
+
+            <!-- Letter preview — all sections are editable -->
+            <div class="letter-preview mb-4">
+                <div class="letter-header" id="previewHeader" contenteditable="true"
+                     title="Click to edit header"></div>
+                <div class="letter-body" id="previewBody" contenteditable="true"
+                     title="Click to edit body"></div>
+                <div class="letter-footer" id="previewFooter" contenteditable="true"
+                     title="Click to edit footer"></div>
+            </div>
+            <p class="text-muted small mb-3"><i class="bi bi-pencil me-1"></i>The preview is editable — click any section to make changes before downloading.</p>
+
+            <!-- Download section -->
+            <div class="card stat-card">
+                <div class="card-body p-4">
+                    <h6 class="fw-semibold mb-3"><i class="bi bi-download me-1 text-primary"></i>Download as PDF</h6>
+                    <div class="input-group">
+                        <input type="text" id="pdfFileName" class="form-control"
+                               placeholder="cover-letter" aria-label="File name" />
+                        <span class="input-group-text text-muted">.pdf</span>
+                        <button class="btn btn-success" id="downloadBtn" onclick="downloadPdf()">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
+                        </button>
+                    </div>
+                    <div class="form-text">Rename the file if you wish, then click Download PDF.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // ── State ─────────────────────────────────────────────────────
+    let generatedLetterId = null;
+    let currentConfigId = null;
+
+    // ── Config management ─────────────────────────────────────────
+    function onConfigSelected() {
+        const sel = document.getElementById('configSelect');
+        currentConfigId = sel.value || null;
+
+        const updateBtn = document.getElementById('updateConfigBtn');
+        const deleteBtn = document.getElementById('deleteConfigBtn');
+
+        if (!sel.value) {
+            updateBtn.disabled = true;
+            deleteBtn.disabled = true;
+            return;
+        }
+
+        const opt = sel.options[sel.selectedIndex];
+        document.getElementById('configName').value = opt.text;
+        document.getElementById('instructions').value = opt.getAttribute('data-instructions') || '';
+        document.getElementById('headerTemplate').value = opt.getAttribute('data-header') || '';
+        document.getElementById('footerTemplate').value = opt.getAttribute('data-footer') || '';
+
+        updateBtn.disabled = false;
+        deleteBtn.disabled = false;
+        clearErr('instructionsError');
+        clearErr('templateError');
+    }
+
+    async function saveNewConfig() {
+        const name = document.getElementById('configName').value.trim();
+        if (!name) { showConfigMsg('Enter a name for the config first.', 'danger'); return; }
+
+        showLoading('Saving config…');
+        try {
+            const resp = await fetch('/api/cover-letter-configs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    instructions: document.getElementById('instructions').value.trim(),
+                    headerTemplate: document.getElementById('headerTemplate').value.trim(),
+                    footerTemplate: document.getElementById('footerTemplate').value.trim(),
+                    isDefault: false
+                })
+            });
+            hideLoading();
+            if (!resp.ok) { showConfigMsg('Failed to save config.', 'danger'); return; }
+
+            const cfg = await resp.json();
+            addConfigOption(cfg);
+            document.getElementById('configSelect').value = cfg.id;
+            currentConfigId = cfg.id;
+            document.getElementById('updateConfigBtn').disabled = false;
+            document.getElementById('deleteConfigBtn').disabled = false;
+            showConfigMsg('Config saved!', 'success');
+        } catch {
+            hideLoading();
+            showConfigMsg('Error saving config.', 'danger');
+        }
+    }
+
+    async function updateCurrentConfig() {
+        if (!currentConfigId) return;
+        const name = document.getElementById('configName').value.trim();
+        if (!name) { showConfigMsg('Config name is required.', 'danger'); return; }
+
+        showLoading('Updating config…');
+        try {
+            const resp = await fetch(`/api/cover-letter-configs/${currentConfigId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    instructions: document.getElementById('instructions').value.trim(),
+                    headerTemplate: document.getElementById('headerTemplate').value.trim(),
+                    footerTemplate: document.getElementById('footerTemplate').value.trim(),
+                    isDefault: false
+                })
+            });
+            hideLoading();
+            if (!resp.ok) { showConfigMsg('Failed to update config.', 'danger'); return; }
+
+            const sel = document.getElementById('configSelect');
+            const opt = sel.options[sel.selectedIndex];
+            opt.text = name;
+            opt.setAttribute('data-instructions', document.getElementById('instructions').value.trim());
+            opt.setAttribute('data-header', document.getElementById('headerTemplate').value.trim());
+            opt.setAttribute('data-footer', document.getElementById('footerTemplate').value.trim());
+            showConfigMsg('Config updated!', 'success');
+        } catch {
+            hideLoading();
+            showConfigMsg('Error updating config.', 'danger');
+        }
+    }
+
+    async function deleteCurrentConfig() {
+        if (!currentConfigId) return;
+        if (!confirm('Delete this config? This cannot be undone.')) return;
+
+        showLoading('Deleting config…');
+        try {
+            const resp = await fetch(`/api/cover-letter-configs/${currentConfigId}`, { method: 'DELETE' });
+            hideLoading();
+            if (!resp.ok) { showConfigMsg('Failed to delete config.', 'danger'); return; }
+
+            const sel = document.getElementById('configSelect');
+            sel.remove(sel.selectedIndex);
+            sel.value = '';
+            currentConfigId = null;
+            document.getElementById('updateConfigBtn').disabled = true;
+            document.getElementById('deleteConfigBtn').disabled = true;
+            document.getElementById('configName').value = '';
+            showConfigMsg('Config deleted.', 'success');
+        } catch {
+            hideLoading();
+            showConfigMsg('Error deleting config.', 'danger');
+        }
+    }
+
+    function addConfigOption(cfg) {
+        const sel = document.getElementById('configSelect');
+        const opt = document.createElement('option');
+        opt.value = cfg.id;
+        opt.text = cfg.name;
+        opt.setAttribute('data-instructions', cfg.instructions || '');
+        opt.setAttribute('data-header', cfg.headerTemplate || '');
+        opt.setAttribute('data-footer', cfg.footerTemplate || '');
+        sel.add(opt);
+    }
+
+    function showConfigMsg(msg, type) {
+        const el = document.getElementById('configMsg');
+        el.textContent = msg;
+        el.className = `small mt-2 text-${type}`;
+        el.classList.remove('d-none');
+        setTimeout(() => el.classList.add('d-none'), 3000);
+    }
+
+    // ── JD source toggle ─────────────────────────────────────────
+    document.querySelectorAll('input[name="jdSource"]').forEach(r => {
+        r.addEventListener('change', toggleJdSource);
+    });
+
+    function toggleJdSource() {
+        const v = document.querySelector('input[name="jdSource"]:checked').value;
+        document.getElementById('jdDbInput').classList.toggle('d-none', v !== 'stored');
+        document.getElementById('jdTextInput').classList.toggle('d-none', v !== 'text');
+        document.getElementById('jdUrlInput').classList.toggle('d-none', v !== 'url');
+        clearErr('jdError');
+    }
+
+    toggleJdSource();
+
+    // ── Resume source toggle ─────────────────────────────────────
+    document.querySelectorAll('input[name="resumeSource"]').forEach(r => {
+        r.addEventListener('change', () => {
+            const lib = document.getElementById('resumeFromLib').checked;
+            document.getElementById('resumeLibInput').classList.toggle('d-none', !lib);
+            document.getElementById('resumeUploadInput').classList.toggle('d-none', lib);
+            clearErr('resumeError');
+        });
+    });
+
+    // ── JD DB selection → show content preview ───────────────────
+    function onJdSelected() {
+        const sel = document.getElementById('jdSelect');
+        const preview = document.getElementById('jdDbPreview');
+        if (!sel.value) {
+            preview.classList.add('d-none');
+            return;
+        }
+        const content = sel.options[sel.selectedIndex].getAttribute('data-content') || '';
+        preview.textContent = content.length > 600 ? content.substring(0, 600) + '…' : content;
+        preview.classList.remove('d-none');
+    }
+
+    // ── Validation ───────────────────────────────────────────────
+    function validate() {
+        let ok = true;
+
+        if (!document.getElementById('instructions').value.trim()) {
+            showErr('instructionsError', 'Please provide AI instructions for generating the cover letter.');
+            ok = false;
+        }
+
+        const header = document.getElementById('headerTemplate').value.trim();
+        const footer = document.getElementById('footerTemplate').value.trim();
+        if (!header || !footer) {
+            showErr('templateError', 'Both header and footer template fields are required.');
+            ok = false;
+        }
+
+        const resumeSrc = document.querySelector('input[name="resumeSource"]:checked').value;
+        if (resumeSrc === 'library') {
+            const sel = document.getElementById('resumeSelect');
+            if (!sel || !sel.value) {
+                showErr('resumeError', 'Please select a resume from your library.');
+                ok = false;
+            }
+        } else {
+            const f = document.getElementById('resumeFile').files[0];
+            if (!f) { showErr('resumeError', 'Please select a PDF or DOCX resume file.'); ok = false; }
+            else if (f.size > 10 * 1024 * 1024) { showErr('resumeError', 'File must be 10 MB or less.'); ok = false; }
+        }
+
+        const jdSrc = document.querySelector('input[name="jdSource"]:checked').value;
+        if (jdSrc === 'stored') {
+            const sel = document.getElementById('jdSelect');
+            if (!sel || !sel.value) { showErr('jdError', 'Please select a job description from the database.'); ok = false; }
+        } else if (jdSrc === 'text') {
+            if (document.getElementById('jdText').value.trim().length < 50) {
+                showErr('jdError', 'Please paste the full job description (at least 50 characters).'); ok = false;
+            }
+        } else {
+            const url = document.getElementById('jdUrl').value.trim();
+            if (!url || !url.startsWith('http')) {
+                showErr('jdError', 'Please enter a valid job posting URL (starting with http or https).'); ok = false;
+            }
+        }
+
+        return ok;
+    }
+
+    // ── Main generation flow ─────────────────────────────────────
+    async function generate() {
+        ['instructionsError','templateError','resumeError','jdError'].forEach(clearErr);
+        if (!validate()) return;
+
+        const btn = document.getElementById('generateBtn');
+        btn.disabled = true;
+        showLoading('Generating cover letter with Gemini AI…');
+
+        try {
+            // 1. Resolve resume ID
+            let resumeId;
+            if (document.getElementById('resumeFromLib').checked) {
+                resumeId = document.getElementById('resumeSelect').value;
+            } else {
+                resumeId = await uploadResume();
+            }
+
+            // 2. Resolve config — use saved config or create a temporary one
+            let configId;
+            if (currentConfigId) {
+                configId = currentConfigId;
+            } else {
+                configId = await createTempConfig();
+            }
+
+            // 3. Build generate request
+            const jdSrc = document.querySelector('input[name="jdSource"]:checked').value;
+            let jdSourceType, jobDescriptionId, jdContent;
+
+            if (jdSrc === 'stored') {
+                jdSourceType = 'stored';
+                jobDescriptionId = document.getElementById('jdSelect').value;
+            } else if (jdSrc === 'text') {
+                jdSourceType = 'text';
+                jdContent = document.getElementById('jdText').value.trim();
+            } else {
+                jdSourceType = 'url';
+                jdContent = document.getElementById('jdUrl').value.trim();
+            }
+
+            // 4. Generate cover letter
+            const resp = await fetch('/api/cover-letters/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resumeId, configId, jdSourceType, jobDescriptionId, jdContent })
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                if (resp.status === 422) throw new Error(err.detail || 'Could not scrape this URL. Please paste the job description text instead.');
+                throw new Error(err.detail || 'Generation failed. Please try again.');
+            }
+
+            const letter = await resp.json();
+            generatedLetterId = letter.id;
+
+            hideLoading();
+            renderPreview(letter.content);
+            btn.disabled = false;
+
+        } catch (e) {
+            hideLoading();
+            btn.disabled = false;
+            showErr('jdError', e.message);
+        }
+    }
+
+    async function uploadResume() {
+        const file = document.getElementById('resumeFile').files[0];
+        const form = new FormData();
+        form.append('file', file);
+        const resp = await fetch('/api/resumes/upload', { method: 'POST', body: form });
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.detail || 'Resume upload failed.');
+        }
+        return (await resp.json()).id;
+    }
+
+    async function createTempConfig() {
+        const now = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+        const configName = document.getElementById('configName').value.trim() || `Cover Letter – ${now}`;
+        const resp = await fetch('/api/cover-letter-configs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: configName,
+                instructions: document.getElementById('instructions').value.trim(),
+                headerTemplate: document.getElementById('headerTemplate').value.trim(),
+                footerTemplate: document.getElementById('footerTemplate').value.trim(),
+                isDefault: false
+            })
+        });
+        if (!resp.ok) throw new Error('Could not save config. Please try again.');
+
+        const cfg = await resp.json();
+        addConfigOption(cfg);
+        document.getElementById('configSelect').value = cfg.id;
+        currentConfigId = cfg.id;
+        document.getElementById('configName').value = configName;
+        document.getElementById('updateConfigBtn').disabled = false;
+        document.getElementById('deleteConfigBtn').disabled = false;
+        return cfg.id;
+    }
+
+    // ── Render preview ────────────────────────────────────────────
+    function renderPreview(body) {
+        document.getElementById('previewPlaceholder').classList.add('d-none');
+        document.getElementById('previewPanel').classList.remove('d-none');
+
+        // innerText preserves newlines in contenteditable divs with white-space:pre-wrap
+        document.getElementById('previewHeader').innerText = document.getElementById('headerTemplate').value.trim();
+        document.getElementById('previewBody').innerText = body;
+        document.getElementById('previewFooter').innerText = document.getElementById('footerTemplate').value.trim();
+
+        document.getElementById('pdfFileName').value = 'cover-letter';
+        document.getElementById('previewPanel').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // ── Download PDF — reads the (possibly edited) preview content ─
+    async function downloadPdf() {
+        const raw = document.getElementById('pdfFileName').value.trim();
+        const fileName = raw || 'cover-letter';
+        const btn = document.getElementById('downloadBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating…';
+
+        try {
+            const resp = await fetch('/api/cover-letters/render-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    header: document.getElementById('previewHeader').innerText,
+                    body:   document.getElementById('previewBody').innerText,
+                    footer: document.getElementById('previewFooter').innerText,
+                    fileName
+                })
+            });
+
+            if (!resp.ok) throw new Error('PDF generation failed.');
+
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${fileName}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            showErr('jdError', 'Could not generate PDF: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-file-earmark-pdf me-1"></i>Download PDF';
+        }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function showErr(id, msg) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.remove('d-none');
+    }
+
+    function clearErr(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = '';
+        el.classList.add('d-none');
+    }
+</script>
+}
