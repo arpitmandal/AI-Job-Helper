@@ -1,0 +1,37 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.swp
+
+# Build output
+publish/
+
+# User secrets (stored outside project, but just in case)
+secrets.json
+
+# Environment files with real secrets
+.env
+
+# Logs
+logs/
+*.log
+
+# Uploads directory
+uploads/
+
+# macOS
+.DS_Store
+__MACOSX/
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# JetBrains Rider
+.idea/
+
+# VS Code
+.vscode/

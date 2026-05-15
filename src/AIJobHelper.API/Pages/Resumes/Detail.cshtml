@@ -1,0 +1,113 @@
+@page
+@model AIJobHelper.API.Pages.Resumes.ResumeDetailModel
+@{
+    ViewData["Title"] = Model.Resume?.FileName ?? "Resume";
+    ViewData["ActivePage"] = "Resumes";
+}
+
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/Resumes">Resumes</a></li>
+        <li class="breadcrumb-item active text-truncate" style="max-width:300px">@Model.Resume?.FileName</li>
+    </ol>
+</nav>
+
+@if (Model.Resume is null)
+{
+    <div class="alert alert-warning">Resume not found.</div>
+    return;
+}
+
+<div class="row g-4">
+    <!-- Left: resume info + analysis trigger -->
+    <div class="col-lg-5">
+        <div class="card stat-card mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="fs-1 text-primary">
+                        <i class="bi bi-file-earmark-@(Model.Resume.FileType == "pdf" ? "pdf" : "word")"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-semibold">@Model.Resume.FileName</h5>
+                        <span class="text-muted small">@Model.Resume.FileType.ToUpper() · Uploaded @Model.Resume.UploadedAt.ToString("MMM d, yyyy")</span>
+                    </div>
+                </div>
+                <hr />
+                <button id="analyseBtn" class="btn btn-primary w-100" onclick="runAnalysis('@Model.Resume.Id')">
+                    <i class="bi bi-stars me-1"></i>
+                    @(Model.Analysis is not null ? "Re-run Analysis" : "Run AI Analysis")
+                </button>
+                <p class="text-muted small mt-2 mb-0">
+                    <i class="bi bi-info-circle me-1"></i>Uses Google Gemini AI — takes a few seconds.
+                </p>
+            </div>
+        </div>
+
+        <!-- Extracted text preview -->
+        <div class="card stat-card">
+            <div class="card-header bg-transparent fw-semibold py-3">
+                <i class="bi bi-text-left me-1"></i>Extracted text preview
+            </div>
+            <div class="card-body">
+                <pre class="small text-muted mb-0" style="white-space:pre-wrap;max-height:320px;overflow-y:auto">@Model.ResumeTextPreview</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: analysis results -->
+    <div class="col-lg-7">
+        <div id="analysisSection">
+            @if (Model.Analysis is not null)
+            {
+                @await Html.PartialAsync("_AnalysisResult", Model.Analysis)
+            }
+            else
+            {
+                <div id="noAnalysis" class="card stat-card p-5 text-center">
+                    <div class="fs-1 text-muted mb-3"><i class="bi bi-stars"></i></div>
+                    <h5>No analysis yet</h5>
+                    <p class="text-muted">Click "Run AI Analysis" to get a detailed breakdown of this resume.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    async function runAnalysis(resumeId) {
+        showLoading('Analysing resume with Gemini AI...');
+        const btn = document.getElementById('analyseBtn');
+        btn.disabled = true;
+
+        try {
+            const resp = await fetch(`/api/resumes/${resumeId}/analyze`, { method: 'POST' });
+            if (!resp.ok) {
+                const err = await resp.json();
+                throw new Error(err.detail || 'Analysis failed. Please try again.');
+            }
+            // Reload page to show fresh analysis
+            window.location.reload();
+        } catch (e) {
+            hideLoading();
+            btn.disabled = false;
+            showErrorToast(e.message);
+        }
+    }
+
+    function showErrorToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'position-fixed bottom-0 end-0 p-3';
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `
+            <div class="toast show align-items-center text-bg-danger border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body"><i class="bi bi-exclamation-circle me-2"></i>${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.position-fixed').remove()"></button>
+                </div>
+            </div>`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 6000);
+    }
+</script>
+}

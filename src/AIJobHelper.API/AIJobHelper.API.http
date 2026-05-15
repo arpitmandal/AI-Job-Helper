@@ -1,0 +1,6 @@
+@AIJobHelper.API_HostAddress = http://localhost:5098
+
+GET {{AIJobHelper.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
